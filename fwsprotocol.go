@@ -6,6 +6,9 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
+// FWS Protocol socket constatnt
+const FWS_SOCKET = "/tmp/fws_server.sock"
+
 // Message type – alias for []uint8
 type Msg []uint8
 

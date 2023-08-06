@@ -346,12 +346,24 @@ func TestMove(t *testing.T) {
 	}
 }
 
-func TestTop(t *testing.T) {
-	topRequest := TopRequest{Id: 1234}
+func TestFocus(t *testing.T) {
+	topRequest := FocusRequest{Id: 1234}
 	encoded := topRequest.Encode()
 	decoded := encoded.Decode()
 	switch tdecode := decoded.(type) {
-	case *TopRequest:
+	case *FocusRequest:
+		if tdecode.Id != topRequest.Id {
+			t.Errorf("Id field decoding failed: expected %d, got %d\n", topRequest.Id, tdecode.Id)
+		}
+	}
+}
+
+func TestUnfocus(t *testing.T) {
+	topRequest := UnfocusRequest{Id: 1234}
+	encoded := topRequest.Encode()
+	decoded := encoded.Decode()
+	switch tdecode := decoded.(type) {
+	case *UnfocusRequest:
 		if tdecode.Id != topRequest.Id {
 			t.Errorf("Id field decoding failed: expected %d, got %d\n", topRequest.Id, tdecode.Id)
 		}

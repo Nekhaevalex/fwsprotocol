@@ -61,9 +61,9 @@ func (msg *Msg) Decode() Request {
 		x := int(binary.LittleEndian.Uint64(payload[4:12]))
 		y := int(binary.LittleEndian.Uint64(payload[12:20]))
 		return &MoveRequest{Id: id, X: x, Y: y}
-	case TOP:
+	case FOCUS:
 		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
-		return &TopRequest{Id: id}
+		return &FocusRequest{Id: id}
 	default:
 		return nil
 	}
@@ -84,7 +84,8 @@ const (
 	RESIZE                       // Message requesting window resize with specified parameters
 	DELETE                       // Message requesting window deletion
 	MOVE                         // Message specifying window shift
-	TOP                          // Message requesting putting window on top
+	FOCUS                        // Message requesting putting window on top
+	UNFOCUS                      // Message stating that window in not active now
 )
 
 // Window ID type
@@ -347,12 +348,22 @@ func (o *MoveRequest) Encode() Msg {
 	return msg
 }
 
-type TopRequest struct {
+type FocusRequest struct {
 	Id ID
 }
 
-func (o *TopRequest) Encode() Msg {
-	msg := []uint8{uint8(TOP)}
+func (o *FocusRequest) Encode() Msg {
+	msg := []uint8{uint8(FOCUS)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
+	return msg
+}
+
+type UnfocusRequest struct {
+	Id ID
+}
+
+func (o *UnfocusRequest) Encode() Msg {
+	msg := []uint8{uint8(UNFOCUS)}
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
 	return msg
 }

@@ -1,3 +1,4 @@
+// F Window System Protocol package
 package fwsprotocol
 
 import (

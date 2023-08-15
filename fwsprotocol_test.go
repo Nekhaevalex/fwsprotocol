@@ -8,6 +8,7 @@ import (
 
 func TestNewWindowRequest(t *testing.T) {
 	windowRequest := NewWindowRequest{
+		Pid:    0,
 		X:      1,
 		Y:      2,
 		Width:  10,
@@ -16,6 +17,9 @@ func TestNewWindowRequest(t *testing.T) {
 	decoded := encoded.Decode()
 	switch tdecode := decoded.(type) {
 	case *NewWindowRequest:
+		if tdecode.Pid != windowRequest.Pid {
+			t.Errorf("Pid field decoding failed: expected %d, got %d\n", tdecode.X, windowRequest.X)
+		}
 		if tdecode.X != windowRequest.X {
 			t.Errorf("X field decoding failed: expected %d, got %d\n", tdecode.X, windowRequest.X)
 		}

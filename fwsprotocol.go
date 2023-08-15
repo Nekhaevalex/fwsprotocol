@@ -19,9 +19,17 @@ func (msg *Msg) Decode() Request {
 	payload := []uint8(*msg)[1:]
 	switch header {
 	case NEW:
-		return &NewWindowRequest{int(binary.LittleEndian.Uint32(payload[0:4])), int(binary.LittleEndian.Uint32(payload[4:8])), int(binary.LittleEndian.Uint32(payload[8:12])), int(binary.LittleEndian.Uint32(payload[12:16]))}
+		return &NewWindowRequest{
+			int(binary.LittleEndian.Uint32(payload[0:4])),
+			int(binary.LittleEndian.Uint32(payload[4:8])),
+			int(binary.LittleEndian.Uint32(payload[8:12])),
+			int(binary.LittleEndian.Uint32(payload[12:16])),
+			int(binary.LittleEndian.Uint32(payload[16:20]))}
 	case GET:
-		return &GetRequest{ID(binary.LittleEndian.Uint32(payload[0:4])), int(binary.LittleEndian.Uint64(payload[4:12])), int(binary.LittleEndian.Uint64(payload[12:20]))}
+		return &GetRequest{
+			ID(binary.LittleEndian.Uint32(payload[0:4])),
+			int(binary.LittleEndian.Uint64(payload[4:12])),
+			int(binary.LittleEndian.Uint64(payload[12:20]))}
 	case REPLY_CREATION:
 		return &ReplyCreationRequest{ID(binary.LittleEndian.Uint32(payload[0:4]))}
 	case REPLY_GET:
@@ -163,6 +171,7 @@ type Request interface {
 // New window request
 // (16 bytes)
 type NewWindowRequest struct {
+	Pid    int // Requesting application Unix pid
 	X      int // Global X position
 	Y      int // Global Y position
 	Width  int // Window width
@@ -172,6 +181,7 @@ type NewWindowRequest struct {
 // New window request binary encoder
 func (o *NewWindowRequest) Encode() Msg {
 	msg := []uint8{uint8(NEW)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Pid))
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.X))
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Y))
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Width))

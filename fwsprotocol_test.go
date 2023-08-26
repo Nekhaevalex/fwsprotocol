@@ -117,7 +117,8 @@ func TestReplyGetRequest(t *testing.T) {
 
 func TestEventRequest(t *testing.T) {
 	eventRequest := EventRequest{
-		termbox.Event{
+		Id: 123,
+		Event: termbox.Event{
 			Type:   termbox.EventKey,
 			Mod:    termbox.ModAlt,
 			Key:    termbox.KeyArrowDown,
@@ -132,6 +133,9 @@ func TestEventRequest(t *testing.T) {
 	decoded := encoded.Decode()
 	switch tdecode := decoded.(type) {
 	case *EventRequest:
+		if tdecode.Id != eventRequest.Id {
+			t.Errorf("Id field decoding failed: expected %d, got %d\n", eventRequest.Type, tdecode.Type)
+		}
 		if tdecode.Type != eventRequest.Type {
 			t.Errorf("Type field decoding failed: expected %d, got %d\n", eventRequest.Type, tdecode.Type)
 		}

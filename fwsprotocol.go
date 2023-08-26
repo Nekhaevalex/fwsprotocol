@@ -35,7 +35,8 @@ func (msg *Msg) Decode() Request {
 	case REPLY_GET:
 		return &ReplyGetRequest{decodeCell(payload)}
 	case EVENT:
-		return &EventRequest{decodeEvent(payload)}
+		return &EventRequest{ID(binary.LittleEndian.Uint32(payload[0:4])),
+			decodeEvent(payload[4:])}
 	case DRAW:
 		return &DrawRequest{ID(binary.LittleEndian.Uint32(payload[0:4])), int(binary.LittleEndian.Uint64(payload[4:12])), int(binary.LittleEndian.Uint64(payload[12:20])), decodeCell(payload[20:34])}
 	case DRAW_FILL:
@@ -58,7 +59,7 @@ func (msg *Msg) Decode() Request {
 		return &RenderRequest{Id: id}
 	case DELETE:
 		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
-		return &RenderRequest{Id: id}
+		return &DeleteRequest{Id: id}
 	case RESIZE:
 		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
 		width := int(binary.LittleEndian.Uint64(payload[4:12]))
@@ -72,6 +73,15 @@ func (msg *Msg) Decode() Request {
 	case FOCUS:
 		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
 		return &FocusRequest{Id: id}
+	case UNFOCUS:
+		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
+		return &UnfocusRequest{Id: id}
+	case ACK:
+		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
+		return &AckRequest{Id: id}
+	case REPEAT:
+		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
+		return &RepeatRequest{Id: id}
 	default:
 		return nil
 	}
@@ -94,6 +104,8 @@ const (
 	MOVE                         // Message specifying window shift
 	FOCUS                        // Message requesting putting window on top
 	UNFOCUS                      // Message stating that window in not active now
+	ACK
+	REPEAT
 )
 
 // Window ID type
@@ -119,12 +131,33 @@ type Color struct {
 	A, R, G, B uint8
 }
 
+func ColorFromTermboxAttr(attr termbox.Attribute) Color {
+	r, g, b := termbox.AttributeToRGB(attr)
+	return Color{A: 255, R: r, G: g, B: b}
+}
+
+func (c *Color) ToTerboxAttr() termbox.Attribute {
+	return termbox.RGBToAttribute(c.R, c.G, c.B)
+}
+
 // aRGB overlaying operator
-func (c Color) Over(underlying Color) Color {
-	r := c.R*c.A + underlying.R*(1-c.A)
-	g := c.G*c.A + underlying.G*(1-c.A)
-	b := c.B*c.A + underlying.B*(1-c.A)
-	return Color{255, r, g, b}
+func (a *Color) Over(b Color) Color {
+	alphaA := float32(a.A) / 255
+	alphaB := float32(b.A) / 255
+	alpha0 := alphaA + alphaB*(1-alphaA)
+
+	Ra := float32(a.R) / 255
+	Ga := float32(a.G) / 255
+	Ba := float32(a.B) / 255
+
+	Rb := float32(b.R) / 255
+	Gb := float32(b.G) / 255
+	Bb := float32(b.B) / 255
+
+	nr := uint8(((Ra*alphaA + Rb*(1-alphaA)*alphaB) / alpha0) * 255)
+	ng := uint8(((Ga*alphaA + Gb*(1-alphaA)*alphaB) / alpha0) * 255)
+	nb := uint8(((Ba*alphaA + Bb*(1-alphaA)*alphaB) / alpha0) * 255)
+	return Color{uint8(alpha0 * 255), nr, ng, nb}
 }
 
 func decodeColor(encoded []uint8) Color {
@@ -132,7 +165,7 @@ func decodeColor(encoded []uint8) Color {
 }
 
 // Color type binary encoder
-func (c Color) Encode() []uint8 {
+func (c *Color) Encode() []uint8 {
 	return []uint8{c.A, c.R, c.G, c.B}
 }
 
@@ -143,6 +176,36 @@ type Cell struct {
 	Fg        Color
 	Bg        Color
 	Attribute Attr
+}
+
+func FromTermboxCell(cell termbox.Cell) Cell {
+	return Cell{
+		Ch:        cell.Ch,
+		Fg:        ColorFromTermboxAttr(cell.Fg),
+		Bg:        ColorFromTermboxAttr(cell.Bg),
+		Attribute: 0,
+	}
+}
+
+func (cell *Cell) ToTerboxCell() termbox.Cell {
+	return termbox.Cell{
+		Ch: cell.Ch,
+		Fg: cell.Fg.ToTerboxAttr() | termbox.Attribute(cell.Attribute),
+		Bg: cell.Bg.ToTerboxAttr()}
+}
+
+func (over *Cell) Over(underlying Cell) Cell {
+	new_ch := over.Ch
+	new_fg := over.Fg
+	if over.Ch == rune(" "[0]) && over.Bg.A < 255 {
+		new_ch = underlying.Ch
+		new_fg = over.Bg.Over(underlying.Fg)
+	}
+	newCell := Cell{Ch: new_ch,
+		Fg:        new_fg,
+		Bg:        over.Bg.Over(underlying.Bg),
+		Attribute: over.Attribute}
+	return newCell
 }
 
 func decodeCell(encoded []uint8) Cell {
@@ -233,7 +296,8 @@ func (o *ReplyGetRequest) Encode() Msg {
 // uses termbox Event with overwritten XY local coordinates
 // (48 bytes)
 type EventRequest struct {
-	termbox.Event
+	Id            ID // Layer ID to identify window
+	termbox.Event    // Dispatched termbox event
 }
 
 func decodeEvent(encoded []uint8) termbox.Event {
@@ -262,6 +326,7 @@ func decodeEvent(encoded []uint8) termbox.Event {
 // Event binary encoder
 func (o *EventRequest) Encode() Msg {
 	msg := []uint8{uint8(EVENT)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
 	msg = append(msg, uint8(o.Type))
 	msg = append(msg, uint8(o.Mod))
 	msg = binary.LittleEndian.AppendUint16(msg, uint16(o.Key))
@@ -374,6 +439,26 @@ type UnfocusRequest struct {
 
 func (o *UnfocusRequest) Encode() Msg {
 	msg := []uint8{uint8(UNFOCUS)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
+	return msg
+}
+
+type AckRequest struct {
+	Id ID
+}
+
+func (o *AckRequest) Encode() Msg {
+	msg := []uint8{uint8(ACK)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
+	return msg
+}
+
+type RepeatRequest struct {
+	Id ID
+}
+
+func (o *RepeatRequest) Encode() Msg {
+	msg := []uint8{uint8(REPEAT)}
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
 	return msg
 }

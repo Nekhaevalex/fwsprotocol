@@ -197,7 +197,7 @@ func (cell *Cell) ToTerboxCell() termbox.Cell {
 func (over *Cell) Over(underlying Cell) Cell {
 	new_ch := over.Ch
 	new_fg := over.Fg
-	if over.Ch == rune(" "[0]) && over.Bg.A < 255 {
+	if (over.Ch == rune(" "[0]) || over.Ch == 0) && over.Bg.A < 255 {
 		new_ch = underlying.Ch
 		new_fg = over.Bg.Over(underlying.Fg)
 	}

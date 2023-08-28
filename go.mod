@@ -1,4 +1,4 @@
-module fws/fwsprotocol
+module github.com/Nekhaevalex/fwsprotocol
 
 go 1.20
 

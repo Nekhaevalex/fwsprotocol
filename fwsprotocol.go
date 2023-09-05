@@ -3,6 +3,7 @@ package fwsprotocol
 
 import (
 	"encoding/binary"
+	"math"
 
 	"github.com/nsf/termbox-go"
 )
@@ -24,7 +25,8 @@ func (msg *Msg) Decode() Request {
 			int(binary.LittleEndian.Uint32(payload[4:8])),
 			int(binary.LittleEndian.Uint32(payload[8:12])),
 			int(binary.LittleEndian.Uint32(payload[12:16])),
-			int(binary.LittleEndian.Uint32(payload[16:20]))}
+			int(binary.LittleEndian.Uint32(payload[16:20])),
+			LayerAttribute(payload[20])}
 	case GET:
 		return &GetRequest{
 			ID(binary.LittleEndian.Uint32(payload[0:4])),
@@ -82,6 +84,18 @@ func (msg *Msg) Decode() Request {
 	case REPEAT:
 		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
 		return &RepeatRequest{Id: id}
+	case SCREEN:
+		id := ID(binary.LittleEndian.Uint32(payload[0:4]))
+		return &ScreenRequest{Id: id}
+	case REPLY_SCREEN:
+		width := int32(binary.LittleEndian.Uint32(payload[0:4]))
+		height := int32(binary.LittleEndian.Uint32(payload[4:8]))
+		mode := termbox.OutputMode(binary.LittleEndian.Uint32(payload[8:12]))
+		return &ReplyScreenRequest{
+			width:  width,
+			height: height,
+			mode:   mode,
+		}
 	default:
 		return nil
 	}
@@ -104,8 +118,18 @@ const (
 	MOVE                         // Message specifying window shift
 	FOCUS                        // Message requesting putting window on top
 	UNFOCUS                      // Message stating that window in not active now
-	ACK
-	REPEAT
+	ACK                          // Acknowledge that message was recieved
+	REPEAT                       // Request message repeat
+	SCREEN                       // Message containing request for screen size and color space information
+	REPLY_SCREEN                 // Message with screen size and color space information
+)
+
+type LayerAttribute uint8
+
+const (
+	ANY    LayerAttribute = iota // Layer can be in any order
+	TOP                          // Layer is always on top of stack
+	BOTTOM                       // Layer is always on bottom of stack
 )
 
 // Window ID type
@@ -158,6 +182,13 @@ func (a *Color) Over(b Color) Color {
 	ng := uint8(((Ga*alphaA + Gb*(1-alphaA)*alphaB) / alpha0) * 255)
 	nb := uint8(((Ba*alphaA + Bb*(1-alphaA)*alphaB) / alpha0) * 255)
 	return Color{uint8(alpha0 * 255), nr, ng, nb}
+}
+
+func (a Color) To216Mode() int {
+	blue := int(math.Round((float64(a.B) / 255) * 6))
+	green := int(math.Round((float64(a.G)/255)*6)) * 6
+	red := int(math.Round((float64(a.R)/255)*6)) * 36
+	return red + green + blue + 1
 }
 
 func decodeColor(encoded []uint8) Color {
@@ -234,11 +265,12 @@ type Request interface {
 // New window request
 // (16 bytes)
 type NewWindowRequest struct {
-	Pid    int // Requesting application Unix pid
-	X      int // Global X position
-	Y      int // Global Y position
-	Width  int // Window width
-	Height int // Window height
+	Pid       int            // Requesting application Unix pid
+	X         int            // Global X position
+	Y         int            // Global Y position
+	Width     int            // Window width
+	Height    int            // Window height
+	LayerAttr LayerAttribute // Window attribute
 }
 
 // New window request binary encoder
@@ -249,6 +281,7 @@ func (o *NewWindowRequest) Encode() Msg {
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Y))
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Width))
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Height))
+	msg = append(msg, uint8(o.LayerAttr))
 	return Msg(msg)
 }
 
@@ -460,5 +493,28 @@ type RepeatRequest struct {
 func (o *RepeatRequest) Encode() Msg {
 	msg := []uint8{uint8(REPEAT)}
 	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
+	return msg
+}
+
+type ScreenRequest struct {
+	Id ID
+}
+
+func (o *ScreenRequest) Encode() Msg {
+	msg := []uint8{uint8(SCREEN)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Id))
+	return msg
+}
+
+type ReplyScreenRequest struct {
+	width, height int32
+	mode          termbox.OutputMode
+}
+
+func (o *ReplyScreenRequest) Encode() Msg {
+	msg := []uint8{uint8(REPLY_SCREEN)}
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.width))
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.height))
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.mode))
 	return msg
 }

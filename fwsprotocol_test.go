@@ -8,11 +8,12 @@ import (
 
 func TestNewWindowRequest(t *testing.T) {
 	windowRequest := NewWindowRequest{
-		Pid:    0,
-		X:      1,
-		Y:      2,
-		Width:  10,
-		Height: 20}
+		Pid:       0,
+		X:         1,
+		Y:         2,
+		Width:     10,
+		Height:    20,
+		LayerAttr: BOTTOM}
 	encoded := windowRequest.Encode()
 	decoded := encoded.Decode()
 	switch tdecode := decoded.(type) {
@@ -30,7 +31,10 @@ func TestNewWindowRequest(t *testing.T) {
 			t.Errorf("Width field decoding failed: expected %d, got %d\n", tdecode.Width, windowRequest.Width)
 		}
 		if tdecode.Height != windowRequest.Height {
-			t.Errorf("Width field decoding failed: expected %d, got %d\n", tdecode.Height, windowRequest.Height)
+			t.Errorf("Height field decoding failed: expected %d, got %d\n", tdecode.Height, windowRequest.Height)
+		}
+		if tdecode.LayerAttr != windowRequest.LayerAttr {
+			t.Errorf("Layer attreibute field decoding failed: expected %d, got %d\n", tdecode.LayerAttr, windowRequest.LayerAttr)
 		}
 	default:
 		t.Errorf("Wrong decoded type: %v\n", tdecode)
@@ -374,6 +378,61 @@ func TestUnfocus(t *testing.T) {
 	case *UnfocusRequest:
 		if tdecode.Id != topRequest.Id {
 			t.Errorf("Id field decoding failed: expected %d, got %d\n", topRequest.Id, tdecode.Id)
+		}
+	}
+}
+
+func TestAck(t *testing.T) {
+	ackRequest := AckRequest{Id: 1234}
+	encoded := ackRequest.Encode()
+	decoded := encoded.Decode()
+	switch tdecode := decoded.(type) {
+	case *AckRequest:
+		if tdecode.Id != ackRequest.Id {
+			t.Errorf("Id field decoding failed: expected %d, got %d\n", ackRequest.Id, tdecode.Id)
+		}
+	}
+}
+
+func TestRepeatRequest(t *testing.T) {
+	repeatRequest := RepeatRequest{Id: 1234}
+	encoded := repeatRequest.Encode()
+	decoded := encoded.Decode()
+	switch tdecode := decoded.(type) {
+	case *RepeatRequest:
+		if tdecode.Id != repeatRequest.Id {
+			t.Errorf("Id field decoding failed: expected %d, got %d\n", repeatRequest.Id, tdecode.Id)
+		}
+	}
+}
+
+func TestScreenRequest(t *testing.T) {
+	screenRequest := ScreenRequest{Id: 1234}
+	encoded := screenRequest.Encode()
+	decoded := encoded.Decode()
+	switch tdecode := decoded.(type) {
+	case *ScreenRequest:
+		if tdecode.Id != screenRequest.Id {
+			t.Errorf("Id field decoding failed: expected %d, got %d\n", screenRequest.Id, tdecode.Id)
+		}
+	}
+}
+
+func TestReplyScreenRequest(t *testing.T) {
+	screenRequest := ReplyScreenRequest{width: 80, height: 25, mode: termbox.Output256}
+	encoded := screenRequest.Encode()
+	decoded := encoded.Decode()
+
+	switch tdecode := decoded.(type) {
+	case *ReplyScreenRequest:
+		if tdecode.width != screenRequest.width {
+			t.Errorf("Width field decoding failed: expected %d, got %d\n", screenRequest.width, tdecode.height)
+		}
+		if tdecode.height != screenRequest.height {
+			t.Errorf("Height field decoding failed: expected %d, got %d\n", screenRequest.height, tdecode.height)
+		}
+		if tdecode.mode != screenRequest.mode {
+			t.Errorf("Mode field decoding failed: expected %d, got %d\n", screenRequest.mode, tdecode.mode)
 		}
 	}
 }

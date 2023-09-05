@@ -419,20 +419,20 @@ func TestScreenRequest(t *testing.T) {
 }
 
 func TestReplyScreenRequest(t *testing.T) {
-	screenRequest := ReplyScreenRequest{width: 80, height: 25, mode: termbox.Output256}
+	screenRequest := ReplyScreenRequest{Width: 80, Height: 25, Mode: termbox.Output256}
 	encoded := screenRequest.Encode()
 	decoded := encoded.Decode()
 
 	switch tdecode := decoded.(type) {
 	case *ReplyScreenRequest:
-		if tdecode.width != screenRequest.width {
-			t.Errorf("Width field decoding failed: expected %d, got %d\n", screenRequest.width, tdecode.height)
+		if tdecode.Width != screenRequest.Width {
+			t.Errorf("Width field decoding failed: expected %d, got %d\n", screenRequest.Width, tdecode.Height)
 		}
-		if tdecode.height != screenRequest.height {
-			t.Errorf("Height field decoding failed: expected %d, got %d\n", screenRequest.height, tdecode.height)
+		if tdecode.Height != screenRequest.Height {
+			t.Errorf("Height field decoding failed: expected %d, got %d\n", screenRequest.Height, tdecode.Height)
 		}
-		if tdecode.mode != screenRequest.mode {
-			t.Errorf("Mode field decoding failed: expected %d, got %d\n", screenRequest.mode, tdecode.mode)
+		if tdecode.Mode != screenRequest.Mode {
+			t.Errorf("Mode field decoding failed: expected %d, got %d\n", screenRequest.Mode, tdecode.Mode)
 		}
 	}
 }

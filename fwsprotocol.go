@@ -92,9 +92,9 @@ func (msg *Msg) Decode() Request {
 		height := int32(binary.LittleEndian.Uint32(payload[4:8]))
 		mode := termbox.OutputMode(binary.LittleEndian.Uint32(payload[8:12]))
 		return &ReplyScreenRequest{
-			width:  width,
-			height: height,
-			mode:   mode,
+			Width:  width,
+			Height: height,
+			Mode:   mode,
 		}
 	default:
 		return nil
@@ -507,14 +507,14 @@ func (o *ScreenRequest) Encode() Msg {
 }
 
 type ReplyScreenRequest struct {
-	width, height int32
-	mode          termbox.OutputMode
+	Width, Height int32
+	Mode          termbox.OutputMode
 }
 
 func (o *ReplyScreenRequest) Encode() Msg {
 	msg := []uint8{uint8(REPLY_SCREEN)}
-	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.width))
-	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.height))
-	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.mode))
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Width))
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Height))
+	msg = binary.LittleEndian.AppendUint32(msg, uint32(o.Mode))
 	return msg
 }
